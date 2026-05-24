@@ -1,0 +1,19 @@
+warehouse_zones:
+  receiving:
+    x: 0.0
+    y: 0.0
+  storage_a:
+    x: 5.0
+    y: 2.0
+  storage_b:
+    x: 9.0
+    y: 2.5
+  packing:
+    x: 6.5
+    y: -1.0
+  shipping:
+    x: 11.0
+    y: -2.0
+  charging_station:
+    x: 1.0
+    y: -3.5
