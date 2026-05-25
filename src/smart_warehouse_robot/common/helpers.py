@@ -345,6 +345,9 @@ def parse_warehouse_zone(value: str):
         "packing": WarehouseZone.PACKING,
         "shipping": WarehouseZone.SHIPPING,
         "charging_station": WarehouseZone.CHARGING_STATION,
+        "parking_a": WarehouseZone.PARKING_A,
+        "parking_b": WarehouseZone.PARKING_B,
+        "parking_c": WarehouseZone.PARKING_C,
     }
     try:
         return aliases[normalized]

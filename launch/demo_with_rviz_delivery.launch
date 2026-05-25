@@ -1,0 +1,7 @@
+<launch>
+  <!-- Launch delivery-focused demo nodes (smooth movement, no obstacle pauses) -->
+  <include file="$(find smart_warehouse_robot)/launch/warehouse_demo_delivery.launch"/>
+
+  <!-- Launch the RViz delivery visualizer and RViz GUI -->
+  <include file="$(find smart_warehouse_robot)/launch/rviz_delivery_demo.launch"/>
+</launch>

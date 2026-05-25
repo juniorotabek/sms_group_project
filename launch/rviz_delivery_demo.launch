@@ -1,0 +1,13 @@
+<launch>
+  <!-- Robot description + wheel TFs, but no static map->base_link transform -->
+  <include file="$(find smart_warehouse_robot)/launch/rviz_delivery_robot.launch"/>
+
+  <!-- Animate the robot and package in RViz -->
+  <node pkg="smart_warehouse_robot" type="rviz_delivery_visualizer_node.py" name="rviz_delivery_visualizer" output="screen">
+    <param name="animation_rate_hz" value="60.0" />
+    <param name="robot_speed_mps" value="2.2" />
+  </node>
+
+  <!-- Start RViz with the package marker included -->
+    <node pkg="rviz" type="rviz" name="rviz" args="-d $(find smart_warehouse_robot)/rviz/robot_camera_follow.rviz" output="screen"/>
+</launch>

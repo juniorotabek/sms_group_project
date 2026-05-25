@@ -1,0 +1,11 @@
+<launch>
+  <!-- Load robot_description from URDF file -->
+  <param name="robot_description" textfile="$(find smart_warehouse_robot)/urdf/warehouse_robot.urdf" />
+
+  <!-- Publish static transforms for wheels (so wheel frames exist without joint_states) -->
+  <node pkg="tf" type="static_transform_publisher" name="base_to_wheel_left_tf" args="-0.05 0.3 0.1 -1.57 0 0 base_link wheel_left 100" />
+  <node pkg="tf" type="static_transform_publisher" name="base_to_wheel_right_tf" args="-0.05 -0.3 0.1 -1.57 0 0 base_link wheel_right 100" />
+
+  <!-- Start robot_state_publisher if available (optional but helpful) -->
+  <node pkg="robot_state_publisher" type="robot_state_publisher" name="robot_state_publisher" output="screen"/>
+</launch>

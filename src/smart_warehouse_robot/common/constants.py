@@ -14,6 +14,7 @@ EMERGENCY_STOP_TOPIC = "/warehouse/safety/emergency_stop"
 BATTERY_STATE_TOPIC = "/warehouse/battery/state"
 RETURN_TO_CHARGE_TOPIC = "/warehouse/battery/return_to_charge"
 PACKAGE_STATUS_TOPIC = "/warehouse/package/status"
+PACKAGE_VISUALIZATION_TOPIC = "/warehouse/package/marker"
 ROBOT_STATUS_TOPIC = "/warehouse/robot/status"
 DIAGNOSTICS_TOPIC = "/warehouse/robot/diagnostics"
 
@@ -54,6 +55,9 @@ WAREHOUSE_ZONE_COORDINATES = {
     "packing": {"x": 6.0, "y": 0.0},
     "shipping": {"x": 9.0, "y": 0.0},
     "charging_station": {"x": 1.0, "y": -3.0},
+    "parking_a": {"x": 9.0, "y": 1.5},
+    "parking_b": {"x": 9.0, "y": 0.0},
+    "parking_c": {"x": 9.0, "y": -1.5},
 }
 
 # Backward-compatible aliases for earlier foundation files.

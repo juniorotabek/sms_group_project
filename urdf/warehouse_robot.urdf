@@ -1,0 +1,186 @@
+<?xml version="1.0"?>
+<robot name="warehouse_robot">
+
+  <!-- Base link -->
+  <link name="base_link">
+    <inertial>
+      <mass value="50.0"/>
+      <origin xyz="0.0 0.0 0.15"/>
+      <inertia ixx="2.5" ixy="0" ixz="0" iyy="2.5" iyz="0" izz="1.0"/>
+    </inertial>
+
+    <collision>
+      <origin xyz="0 0 0.15"/>
+      <geometry>
+        <box size="0.5 0.5 0.3"/>
+      </geometry>
+    </collision>
+
+    <visual>
+      <origin xyz="0 0 0.15"/>
+      <geometry>
+        <box size="0.5 0.5 0.3"/>
+      </geometry>
+      <material name="white">
+        <color rgba="1.0 1.0 1.0 1.0"/>
+      </material>
+    </visual>
+  </link>
+
+  <!-- Caster wheel (front) -->
+  <link name="caster_wheel">
+    <inertial>
+      <mass value="1.0"/>
+      <origin xyz="0 0 0"/>
+      <inertia ixx="0.01" ixy="0" ixz="0" iyy="0.01" iyz="0" izz="0.01"/>
+    </inertial>
+
+    <collision>
+      <origin xyz="0 0 0"/>
+      <geometry>
+        <sphere radius="0.05"/>
+      </geometry>
+    </collision>
+
+    <visual>
+      <origin xyz="0 0 0"/>
+      <geometry>
+        <sphere radius="0.05"/>
+      </geometry>
+      <material name="gray">
+        <color rgba="0.5 0.5 0.5 1.0"/>
+      </material>
+    </visual>
+  </link>
+
+  <!-- Caster joint -->
+  <joint name="caster_joint" type="fixed">
+    <parent link="base_link"/>
+    <child link="caster_wheel"/>
+    <origin xyz="0.15 0 0.05" rpy="0 0 0"/>
+  </joint>
+
+  <!-- Left wheel -->
+  <link name="wheel_left">
+    <inertial>
+      <mass value="2.0"/>
+      <origin xyz="0 0 0"/>
+      <inertia ixx="0.01" ixy="0" ixz="0" iyy="0.01" iyz="0" izz="0.01"/>
+    </inertial>
+
+    <collision>
+      <origin xyz="0 0 0"/>
+      <geometry>
+        <cylinder radius="0.1" length="0.1"/>
+      </geometry>
+    </collision>
+
+    <visual>
+      <origin xyz="0 0 0"/>
+      <geometry>
+        <cylinder radius="0.1" length="0.1"/>
+      </geometry>
+      <material name="black">
+        <color rgba="0.1 0.1 0.1 1.0"/>
+      </material>
+    </visual>
+  </link>
+
+  <!-- Left wheel joint (continuous) -->
+  <joint name="wheel_left_joint" type="continuous">
+    <parent link="base_link"/>
+    <child link="wheel_left"/>
+    <origin xyz="-0.05 0.3 0.1" rpy="-1.57 0 0"/>
+    <axis xyz="0 0 1"/>
+    <limit effort="10" velocity="2"/>
+  </joint>
+
+  <!-- Right wheel -->
+  <link name="wheel_right">
+    <inertial>
+      <mass value="2.0"/>
+      <origin xyz="0 0 0"/>
+      <inertia ixx="0.01" ixy="0" ixz="0" iyy="0.01" iyz="0" izz="0.01"/>
+    </inertial>
+
+    <collision>
+      <origin xyz="0 0 0"/>
+      <geometry>
+        <cylinder radius="0.1" length="0.1"/>
+      </geometry>
+    </collision>
+
+    <visual>
+      <origin xyz="0 0 0"/>
+      <geometry>
+        <cylinder radius="0.1" length="0.1"/>
+      </geometry>
+      <material name="black">
+        <color rgba="0.1 0.1 0.1 1.0"/>
+      </material>
+    </visual>
+  </link>
+
+  <!-- Right wheel joint (continuous) -->
+  <joint name="wheel_right_joint" type="continuous">
+    <parent link="base_link"/>
+    <child link="wheel_right"/>
+    <origin xyz="-0.05 -0.3 0.1" rpy="-1.57 0 0"/>
+    <axis xyz="0 0 1"/>
+    <limit effort="10" velocity="2"/>
+  </joint>
+
+  <!-- Sensor mast (for obstacle detection) -->
+  <link name="sensor_mast">
+    <inertial>
+      <mass value="0.5"/>
+      <origin xyz="0 0 0.2"/>
+      <inertia ixx="0.01" ixy="0" ixz="0" iyy="0.01" iyz="0" izz="0.001"/>
+    </inertial>
+
+    <collision>
+      <origin xyz="0 0 0.2"/>
+      <geometry>
+        <cylinder radius="0.02" length="0.4"/>
+      </geometry>
+    </collision>
+
+    <visual>
+      <origin xyz="0 0 0.2"/>
+      <geometry>
+        <cylinder radius="0.02" length="0.4"/>
+      </geometry>
+      <material name="blue">
+        <color rgba="0.2 0.2 1.0 1.0"/>
+      </material>
+    </visual>
+  </link>
+
+  <!-- Sensor mast joint -->
+  <joint name="sensor_mast_joint" type="fixed">
+    <parent link="base_link"/>
+    <child link="sensor_mast"/>
+    <origin xyz="-0.2 0 0.15" rpy="0 0 0"/>
+  </joint>
+
+  <!-- Sensor (lidar frame) -->
+  <link name="lidar_link">
+    <visual>
+      <origin xyz="0 0 0"/>
+      <geometry>
+        <cylinder radius="0.03" length="0.03"/>
+      </geometry>
+      <material name="red">
+        <color rgba="1.0 0.0 0.0 1.0"/>
+      </material>
+    </visual>
+  </link>
+
+  <!-- Lidar joint -->
+  <joint name="lidar_joint" type="fixed">
+    <parent link="sensor_mast"/>
+    <child link="lidar_link"/>
+    <origin xyz="0 0 0.4" rpy="0 0 0"/>
+  </joint>
+
+</robot>

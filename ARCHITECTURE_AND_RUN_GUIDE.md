@@ -8,9 +8,8 @@
 4. [Data Flow](#data-flow)
 5. [Setup Instructions](#setup-instructions)
 6. [Running the Project](#running-the-project)
-7. [3D Visualization with Gazebo](#3d-visualization-with-gazebo)
-8. [Testing & Validation](#testing--validation)
-9. [Troubleshooting](#troubleshooting)
+7. [Testing & Validation](#testing--validation)
+8. [Troubleshooting](#troubleshooting)
 
 ---
 
@@ -27,7 +26,7 @@
 - Provides an advanced CLI interface
 - Validates behavior through pytest scenarios
 - Records ROS bag data for review
-- Includes 3D Gazebo simulation with physics and collisions
+- Includes 3D visualization in RViz
 
 **Technology Stack:**
 - Ubuntu 20.04
@@ -37,7 +36,7 @@
 - pytest (testing - requires Python 3)
 - click (CLI)
 - rosbag (recording)
-- Gazebo (3D simulation with physics)
+- RViz (3D visualization)
 
 ---
 
@@ -111,148 +110,18 @@ smart_warehouse_robot/
 ├── scripts/                            # Executable node scripts
 │   ├── *_node.py                      # ROS node wrappers
 │   ├── smart_warehouse_cli.py         # CLI interface
-│   ├── record_demo_bag.sh             # Record ROS bag
-│   ├── replay_demo_bag.sh             # Replay ROS bag
-│   ├── check_demo_bag.sh              # Inspect ROS bag
-│   └── run_demo_instructions.sh       # Print demo steps
-│
-├── launch/
-│   └── warehouse_demo.launch          # Launch all nodes
-│
-├── config/
-│   ├── warehouse_map.yaml             # Zone definitions
-│   └── robot_config.yaml              # Robot parameters
-│
-├── tests/                              # Test suite
-│   ├── test_full_*.py                 # Scenario tests
-│   ├── test_*_logic.py                # Unit tests
-│   └── test_*.py                      # Model & service tests
-│
-└── docs/                               # Documentation
-    ├── architecture_overview.md       # System design
-    └── testing_guide.md               # Test documentation
+### TF (Transform) Visualization
+
+To see the robot's frame tree in RViz:
+
+```bash
+rosrun rviz rviz
+
+# In RViz:
+# 1. Set Fixed Frame to "map"
+# 2. Add TF display (Add → TF)
+# 3. You should see: map → base_link → wheels, sensor_mast, lidar_link
 ```
-
----
-
-## Component Structure
-
-### 1. Common Module (`src/smart_warehouse_robot/common/`)
-
-**Purpose:** Shared data models and utilities
-
-- **models.py**: Defines data structures (Task, NavigationGoal, BatteryState, etc.)
-- **constants.py**: Warehouse zones, default parameters, message types
-- **helpers.py**: JSON serialization, zone distance calculation, classification
-
-### 2. Services Module (`src/smart_warehouse_robot/services/`)
-
-**Purpose:** Pure business logic (testable without ROS)
-
-| Service | Responsibility |
-|---------|-----------------|
-| `task_queue.py` | Queue operations, task lifecycle |
-| `navigation.py` | Distance calculations, zone validation |
-| `safety.py` | Obstacle classification (safe/warning/critical) |
-| `battery.py` | Battery state tracking, thresholds |
-| `package_handler.py` | Pickup/dropoff state management |
-| `status.py` | Aggregate robot status from all subsystems |
-
-### 3. Nodes Module (`src/smart_warehouse_robot/nodes/`)
-
-**Purpose:** ROS node wrappers that use services and publish/subscribe to topics
-
-Each node:
-1. Imports service logic from `services/`
-2. Subscribes to ROS topics
-3. Processes messages through service logic
-4. Publishes results to ROS topics
-5. Implements ROS services (for package handler)
-
-### 4. Script Entries (`scripts/`)
-
-Each script is an executable entry point:
-```python
-#!/usr/bin/env python3
-import rospy
-from smart_warehouse_robot.nodes import TaskPublisherNode
-
-if __name__ == '__main__':
-    rospy.init_node('task_publisher')
-    node = TaskPublisherNode()
-    node.run()
-```
-
----
-
-## Data Flow
-
-### Complete Workflow Chain
-
-```
-1. TASK CREATION & QUEUEING
-   ├─ TaskPublisherNode publishes sample tasks
-   └─ → /warehouse/tasks/new (JSON payload)
-        └─ TaskQueueManagerNode receives, queues, manages
-           └─ → /warehouse/tasks/status (updated task status)
-
-2. NAVIGATION CONVERSION
-   ├─ WaypointGoalPublisherNode converts started tasks to goals
-   └─ → /warehouse/navigation/goal (JSON payload)
-        └─ PathProgressMonitorNode simulates movement
-           └─ → /warehouse/navigation/progress (% complete)
-
-3. SAFETY MONITORING
-   ├─ ObstacleDetectorNode simulates sensor readings
-   └─ → /warehouse/safety/obstacle (distance & zone)
-        └─ EmergencyStopNode classifies & triggers
-           └─ → /warehouse/safety/emergency_stop (alert)
-                └─ PathProgressMonitorNode halts if emergency
-
-4. BATTERY MANAGEMENT
-   ├─ BatteryPublisherNode tracks battery from navigation progress
-   └─ → /warehouse/battery/state (percentage & zone)
-        └─ ChargingControllerNode detects low battery
-           ├─ → /warehouse/battery/return_to_charge (command)
-           └─ → /warehouse/navigation/goal (return to charging_station)
-
-5. PACKAGE OPERATIONS
-   ├─ rosservice call /warehouse/package/pickup
-   ├─ → PackageHandlerNode processes
-   └─ → /warehouse/package/status (pickup confirmed)
-   
-   ├─ rosservice call /warehouse/package/dropoff
-   ├─ → PackageHandlerNode processes
-   └─ → /warehouse/package/status (dropoff confirmed)
-
-6. STATUS AGGREGATION
-   ├─ StatusPublisherNode collects from all subsystems
-   └─ → /warehouse/robot/status (complete robot state)
-        └─ DiagnosticLoggerNode analyzes & logs
-           └─ → /warehouse/robot/diagnostics (diagnostic events)
-```
-
-### Topic Summary
-
-| Topic | Publisher | Subscriber | Payload |
-|-------|-----------|------------|---------|
-| `/warehouse/tasks/new` | TaskPublisher | TaskQueueManager | Task(JSON) |
-| `/warehouse/tasks/status` | TaskQueueManager | Waypoint, Status | Task(JSON) |
-| `/warehouse/navigation/goal` | Waypoint, Charging | PathMonitor | Goal(JSON) |
-| `/warehouse/navigation/progress` | PathMonitor | Battery, Status | Progress(JSON) |
-| `/warehouse/safety/obstacle` | ObstacleDetector | EmergencyStop | Obstacle(JSON) |
-| `/warehouse/safety/emergency_stop` | EmergencyStop | PathMonitor, Status | Alert(JSON) |
-| `/warehouse/battery/state` | BatteryPublisher | ChargingController, Status | Battery(JSON) |
-| `/warehouse/battery/return_to_charge` | ChargingController | Status | Command(JSON) |
-| `/warehouse/package/status` | PackageHandler | Status | Package(JSON) |
-| `/warehouse/robot/status` | StatusPublisher | DiagnosticLogger | RobotStatus(JSON) |
-| `/warehouse/robot/diagnostics` | DiagnosticLogger | (logged) | Diagnostic(JSON) |
-
----─ c
-
-## Setup Instructions
-
-### Prerequisites
 
 ```bash
 # Ubuntu 20.04 with ROS 1 Noetic installed
@@ -422,148 +291,163 @@ In RViz:
 3. Click **Add** → **TF** to see frame tree
 4. You should see the robot model at origin with wheels and sensor mast
 
-### Advanced: Gazebo 3D Physics Simulation
+### RViz 3D Visualization
 
-Gazebo provides full physics simulation with collisions. If you want to use it:
+RViz is the supported 3D view for this workspace. It shows the robot model, frame tree, and published status topics without needing extra simulation tooling.
 
-**Step 1: Fix held packages (if needed)**
+**Launch it with the demo:**
 ```bash
-# If you get "held broken packages" errors:
-sudo apt install -y policykit-1
-sudo apt --fix-broken install
-sudo apt install -y gazebo9 ros-noetic-gazebo-dev ros-noetic-gazebo-plugins
+cd ~/catkin_ws
+source devel/setup.bash
+roslaunch smart_warehouse_robot demo_with_rviz_delivery.launch
 ```
 
-**Step 2: Install Gazebo**
+**Smooth-motion profile used by this launch:**
+- `path_progress_monitor/navigation_step_percent: 5.0`
+- `path_progress_monitor/navigation_update_seconds: 0.25`
+- `rviz_delivery_visualizer/animation_rate_hz: 60.0`
+- `rviz_delivery_visualizer/robot_speed_mps: 2.2`
+
+If you need even smoother motion, increase `animation_rate_hz` in `launch/rviz_delivery_demo.launch`.
+
+**In RViz:**
+1. Set **Fixed Frame** to `map`
+2. Add **RobotModel** and set `robot_description`
+3. Add **TF** to see the frame tree
+4. You should see `map -> base_link -> wheel_left`, `wheel_right`, `sensor_mast`, and `lidar_link`
+5. You should also see two distinct delivery markers:
+  - Pickup point: orange flat cylinder at the source shelf
+  - Dropoff point: green sphere at the destination shelf
+6. Robot movement is interpolated at high rate for smoother, more precise motion between zones
+
+**If a transform is missing:**
 ```bash
-sudo apt update
-sudo apt install -y gazebo9 ros-noetic-gazebo-dev ros-noetic-gazebo-plugins
+rosrun tf tf_echo map base_link
+rosrun tf tf_echo map wheel_left
+rosrun tf tf_echo map wheel_right
 ```
 
-**Step 3: Launch with Gazebo** (once installed)
-```bash
-# Terminal 1: Gazebo
-roslaunch smart_warehouse_robot gazebo_warehouse.launch
+### Parking Delivery Demo (Single Pickup → Multiple Parking Spots)
 
-# Terminal 2: Simulation logic
-roslaunch smart_warehouse_robot warehouse_demo.launch
+This new demo mode showcases:
+- **Single pickup location** (Receiving at 0, 0)
+- **Multiple parking spots** (Parking A, B, C) where packages rotate between spots
+- **Continuous cycling** of single pickup → different parking spots
+- **Robot traversal** (never spawns; always travels from current location to pickup, then to parking spot)
+- **Camera following** (RViz can track the robot's position)
+
+**Launch the parking demo:**
+```bash
+cd ~/catkin_ws
+source devel/setup.bash
+pkill -f roslaunch || true  # Kill any existing ROS nodes
+roslaunch smart_warehouse_robot demo_with_rviz_delivery.launch
 ```
 
-### Choosing Between RViz and Gazebo
+**Expected behavior:**
+1. Robot starts at receiving (0, 0)
+2. Robot travels to Parking A (9, 1.5), package delivered
+3. Next task: Robot travels from Parking A back to receiving, then to Parking B (9, 0)
+4. Third task: Robot travels from Parking B back to receiving, then to Parking C (9, -1.5)
+5. Cycle repeats: Robot returns to receiving, goes to Parking A again
+6. **No spawning**: Robot always moves from its current location; never resets position
 
-| Feature | RViz | Gazebo |
-|---------|------|--------|
-| **Setup** | Easy, works immediately | Requires Gazebo install |
-| **Physics** | TF visualization only | Full ODE physics |
-| **Visualization** | Robot model + frames | Warehouse world + zones |
-| **Performance** | Very fast | More CPU/GPU |
-| **Best for** | Debugging, monitoring | Full simulation |
+**Visualizing the demo:**
+- **Fixed Frame**: Set to `map`
+- **Parking spots**: Three green spheres at (9, 1.5), (9, 0), (9, -1.5)
+- **Pickup location**: Orange cylinder at (0, 0)
+- **Robot**: White model with wheels; moves smoothly across the warehouse
+- **Camera tracking**: Invisible marker follows robot position; you can set RViz view to track this marker
 
-**Start with RViz.** If you want full physics simulation later, use Gazebo.
+**To configure camera following in RViz:**
+1. Set **Fixed Frame** to `map`
+2. In the **View** panel, enable **Target Frame** and point to `/warehouse/camera_follower` marker
+3. Or manually adjust your viewport to follow the robot visually
 
-### Gazebo Features
+**Warehouse zone coordinates in parking demo:**
+- Receiving (Pickup): (0, 0)
+- Parking A: (9, 1.5)
+- Parking B: (9, 0)
+- Parking C: (9, -1.5)
 
-- **Warehouse Zones** (color-coded):
-  - Receiving (blue): 2, 2
-  - Storage A (green): -2, 2
-  - Storage B (green): -2, -2
-  - Packing (yellow): 2, -2
-  - Charging Station (red): 0, -4.5
+---
 
-- **Physics**: ODE engine with collisions, gravity, and realistic robot dynamics
-- **Robot Model**: Mobile base with:
-  - Differential drive base (0.5m × 0.5m)
-  - Two powered wheels + caster wheel
-  - Sensor mast with LIDAR frame
-  - Collision geometry for obstacle detection
+## Viewing Telemetry, Sensors & Component Data
 
-- **Walls**: Boundary walls at perimeter for collision testing
+You can inspect all runtime telemetry (battery, diagnostics, navigation progress, package events, and node/component health) using a combination of RViz and the RQT tools.
 
-### Gazebo Controls
-
-**In the Gazebo window:**
-- **Pan**: Right-click + drag
-- **Zoom**: Scroll wheel
-- **Rotate view**: Middle-click + drag
-- **Select object**: Left-click
-
-**Play/Pause simulation:** Click play/pause buttons in toolbar
-
-### Monitor Simulation Data
+1) Quick topic list (see what's available):
 
 ```bash
-# View all published topics
+source ~/catkin_ws/devel/setup.bash
 rostopic list
+```
 
-# Watch robot position/odometry (if nav stack available)
-rostopic echo /odom
+Key topics in this demo (examples):
+- `/warehouse/battery/state` — battery telemetry
+- `/warehouse/navigation/progress` — simulated navigation progress updates
+- `/warehouse/package/marker` — visible package marker (RViz)
+- `/warehouse/package/status` — package state events
+- `/warehouse/robot/status` — aggregated robot status
+- `/warehouse/robot/diagnostics` — diagnostic events
 
-# View robot status
+2) Use `rqt` to visualize component data and diagnostics (recommended):
+
+```bash
+source ~/catkin_ws/devel/setup.bash
+rqt
+```
+
+In `rqt` add the following plugins (Window → Plugins):
+- **rqt_graph** — visualizes topic/node graph
+- **rqt_plot** — plot numeric topics over time (e.g. battery percentage)
+- **rqt_console** + **rqt_logger_level** — show/grep ROS logs
+- **Diagnostics** or **rqt_robot_monitor** (if installed) — show diagnostic statuses per component
+
+3) Use `rostopic` for quick textual inspection:
+
+```bash
+# Live navigation progress
+rostopic echo /warehouse/navigation/progress
+
+# Battery updates
+rostopic echo /warehouse/battery/state
+
+# Package events
+rostopic echo /warehouse/package/status
+
+# Aggregated robot status
 rostopic echo /warehouse/robot/status
-
-# Record bag during simulation
-rosbag record -O bags/gazebo_demo.bag /warehouse/tasks/new /warehouse/robot/status
-
-# Replay recorded bag
-rosbag play bags/gazebo_demo.bag
 ```
 
-### TF (Transform) Visualization
-
-To see the robot's frame tree in RViz:
+4) View node/topic graph and runtime relationships:
 
 ```bash
-# In the Gazebo window, open RViz (Tools → RViz in older versions)
-# Or launch RViz separately:
-rosrun rviz rviz
-
-# In RViz:
-# 1. Set Fixed Frame to "map"
-# 2. Add TF display (Add → TF)
-# 3. You should see: map → base_link → wheels, sensor_mast, lidar_link
+source ~/catkin_ws/devel/setup.bash
+rqt_graph
 ```
 
-### Troubleshooting Gazebo
+5) Save a recording and review later using rosbag + rqt_bag:
 
-**Problem:** `Error [gazebo_ros]: The specified model path is invalid`
 ```bash
-# Solution: Ensure paths exist and are readable
-ls -la src/smart_warehouse_robot/urdf/
-ls -la src/smart_warehouse_robot/worlds/
+# Record demo for 30s
+rosbag record -O /tmp/warehouse_demo.bag /warehouse/# --duration=30
 
-# Rebuild if needed
-cd ~/catkin_ws && catkin_make
+# Open recorded bag
+rqt_bag /tmp/warehouse_demo.bag
 ```
 
-**Problem:** Gazebo window is black or takes forever to startup
-```bash
-# Solution: First launch can be slow; be patient
-# On slower machines, reduce GUI rendering:
-roslaunch smart_warehouse_robot gazebo_warehouse.launch gui:=false
+6) RViz displays included in the demo config (`rviz/robot_camera_follow.rviz`):
+- TF (frame tree)
+- RobotModel (`robot_description`)
+- Warehouse Markers (`/warehouse/package/marker`)
+- Camera Follower marker (`/warehouse/camera_follower`) — RViz view targets this frame so the robot stays in view
+- Ground Grid for orientation
 
-# Use headless mode and view in RViz:
-roslaunch smart_warehouse_robot gazebo_warehouse.launch gui:=false paused:=false
-# Then in another terminal, launch RViz to visualize
-```
+If you want a single-pane dashboard listing all numeric values, use `rqt_plot` for metrics and `rqt_console` for logs; `rqt_robot_monitor` (optional) provides an aggregated health dashboard if present.
 
-**Problem:** Robot doesn't spawn in Gazebo
-```bash
-# Solution: Check spawn_model output for errors
-# Ensure URDF is valid:
-check_urdf src/smart_warehouse_robot/urdf/warehouse_robot.urdf
+---
 
-# Manually test spawn:
-rosrun gazebo_ros spawn_model -urdf -file src/smart_warehouse_robot/urdf/warehouse_robot.urdf -model test_robot
-```
-
-**Problem:** Simulation runs but robot doesn't move
-```bash
-# Solution: Check that warehouse_demo.launch is running
-rosnode list  # Should see task_publisher, path_monitor, etc.
-
-# Also check that navigation messages are being published:
-rostopic echo /warehouse/navigation/goal -n 1
-```
 
 ---
 
