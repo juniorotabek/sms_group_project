@@ -270,7 +270,8 @@ roscore
 ```bash
 cd ~/catkin_ws
 source devel/setup.bash
-roslaunch smart_warehouse_robot warehouse_demo.launch
+roslaunch smart_warehouse_robot warehouse_demo.launchsource ~/catkin_ws/devel/setup.bash
+roslaunch smart_warehouse_robot demo_with_rviz_delivery.launch
 ```
 
 **Terminal 3: Launch RViz with robot visualization**
