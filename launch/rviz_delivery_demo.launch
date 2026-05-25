@@ -1,6 +1,8 @@
 <launch>
   <!-- Robot description + wheel TFs, but no static map->base_link transform -->
-  <include file="$(find smart_warehouse_robot)/launch/rviz_delivery_robot.launch"/>
+  <include file="$(find smart_warehouse_robot)/launch/rviz_delivery_robot.launch">
+    <arg name="publish_static_map_to_base" value="false" />
+  </include>
 
   <!-- Animate the robot and package in RViz -->
   <node pkg="smart_warehouse_robot" type="rviz_delivery_visualizer_node.py" name="rviz_delivery_visualizer" output="screen">

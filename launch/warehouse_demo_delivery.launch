@@ -9,6 +9,7 @@
   <node pkg="smart_warehouse_robot" type="task_queue_manager_node.py" name="task_queue_manager" output="screen">
     <param name="robot_name" value="warehouse_bot_01" />
     <param name="auto_process_tasks" value="true" />
+    <param name="complete_on_arrival" value="true" />
     <param name="completion_cycles" value="2" />
   </node>
 
@@ -24,15 +25,9 @@
     <param name="robot_name" value="warehouse_bot_01" />
     <param name="publish_interval_seconds" value="3.0" />
     <param name="start_percentage" value="100.0" />
-    <param name="battery_drain_percent" value="5.0" />
+    <param name="battery_drain_percent" value="1.0" />
     <param name="battery_charge_percent" value="10.0" />
     <param name="start_zone" value="receiving" />
-  </node>
-
-  <node pkg="smart_warehouse_robot" type="charging_controller_node.py" name="charging_controller" output="screen">
-    <param name="low_battery_threshold" value="25.0" />
-    <param name="critical_battery_threshold" value="10.0" />
-    <param name="publish_navigation_goal" value="true" />
   </node>
 
   <node pkg="smart_warehouse_robot" type="package_handler_node.py" name="package_handler" output="screen">

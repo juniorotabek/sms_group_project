@@ -1,6 +1,11 @@
 <launch>
+  <arg name="publish_static_map_to_base" default="true" />
+
   <!-- Load robot_description from URDF file -->
   <param name="robot_description" textfile="$(find smart_warehouse_robot)/urdf/warehouse_robot.urdf" />
+
+  <!-- Optional static map -> base_link fallback for TF continuity when no dynamic TF publisher is active -->
+  <node if="$(arg publish_static_map_to_base)" pkg="tf" type="static_transform_publisher" name="map_to_base_tf" args="0 0 0 0 0 0 map base_link 100" />
 
   <!-- Publish static transforms for wheels (so wheel frames exist without joint_states) -->
   <node pkg="tf" type="static_transform_publisher" name="base_to_wheel_left_tf" args="-0.05 0.3 0.1 -1.57 0 0 base_link wheel_left 100" />

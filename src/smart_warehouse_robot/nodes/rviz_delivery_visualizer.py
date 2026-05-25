@@ -124,6 +124,9 @@ class RVizDeliveryVisualizerNode:
         self.package_size = float(rospy.get_param("~package_size", 0.25))
         self.animation_rate_hz = float(rospy.get_param("~animation_rate_hz", 20.0))
         self.robot_speed_mps = float(rospy.get_param("~robot_speed_mps", 1.2))
+        self.hud_offset_x = float(rospy.get_param("~hud_offset_x", 2.0))
+        self.hud_offset_y = float(rospy.get_param("~hud_offset_y", 1.4))
+        self.hud_offset_z = float(rospy.get_param("~hud_offset_z", -0.2))
 
         self.tf_broadcaster = tf.TransformBroadcaster()
         self.package_marker_publisher = rospy.Publisher(PACKAGE_VISUALIZATION_TOPIC, Marker, queue_size=10)
@@ -329,9 +332,9 @@ class RVizDeliveryVisualizerNode:
             marker.id = 99
             marker.type = Marker.TEXT_VIEW_FACING
             marker.action = Marker.ADD
-            marker.pose.position.x = 0.0
-            marker.pose.position.y = -0.5
-            marker.pose.position.z = 0.5
+            marker.pose.position.x = self.hud_offset_x
+            marker.pose.position.y = self.hud_offset_y
+            marker.pose.position.z = self.hud_offset_z
             marker.pose.orientation.w = 1.0
             marker.scale.z = 0.35
             marker.color.r = 1.0
