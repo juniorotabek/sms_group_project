@@ -1,3 +1,4 @@
+LIDAR_SCAN_TOPIC = "/warehouse/lidar/scan"
 """Project-wide constants for topics, services, and default values."""
 
 from smart_warehouse_robot.common.models import WarehouseZone

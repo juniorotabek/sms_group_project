@@ -8,9 +8,17 @@ from smart_warehouse_robot.common.constants import (
     EMERGENCY_STOP_TOPIC,
     NAVIGATION_GOAL_TOPIC,
     NAVIGATION_PROGRESS_TOPIC,
+    PACKAGE_STATUS_TOPIC,
 )
 from smart_warehouse_robot.common.helpers import format_navigation_progress_summary
-from smart_warehouse_robot.common.models import EmergencyStopCommand, NavigationGoal, NavigationProgress, NavigationStatus
+from smart_warehouse_robot.common.models import (
+    EmergencyStopCommand,
+    NavigationGoal,
+    NavigationProgress,
+    NavigationStatus,
+    PackageState,
+    PackageStatusEvent,
+)
 from smart_warehouse_robot.services.navigation import NavigationSimulator
 
 try:
@@ -52,11 +60,15 @@ class PathProgressMonitorNode:
         self.simulator = NavigationSimulator(step_percent=step_percent)
         self.subscription = rospy.Subscriber(NAVIGATION_GOAL_TOPIC, String, self.handle_goal, queue_size=10)
         self.emergency_subscription = rospy.Subscriber(EMERGENCY_STOP_TOPIC, String, self.handle_emergency_stop, queue_size=10)
+        self.package_subscription = rospy.Subscriber(PACKAGE_STATUS_TOPIC, String, self.handle_package_status, queue_size=10)
         self.progress_publisher = rospy.Publisher(NAVIGATION_PROGRESS_TOPIC, String, queue_size=10)
         self.timer = rospy.Timer(rospy.Duration(update_seconds), self.publish_progress_step)
+        self.progress_tracking_enabled = False
         rospy.loginfo(
-            "PathProgressMonitorNode started. Listening on %s and publishing to %s every %.1fs",
+            "PathProgressMonitorNode started. Listening on %s, %s, and %s; publishing to %s every %.1fs",
             NAVIGATION_GOAL_TOPIC,
+            PACKAGE_STATUS_TOPIC,
+            EMERGENCY_STOP_TOPIC,
             NAVIGATION_PROGRESS_TOPIC,
             update_seconds,
         )
@@ -69,9 +81,59 @@ class PathProgressMonitorNode:
             rospy.logerr("Failed to parse navigation goal: %s", exc)
             return
         self.simulator.set_goal(goal)
-        initial_progress = self.simulator.step()
+        self.progress_tracking_enabled = False
+
+        initial_progress = NavigationProgress(
+            goal_id=goal.goal_id,
+            task_id=goal.task_id,
+            current_zone=goal.source_zone,
+            destination_zone=goal.destination_zone,
+            progress_percent=0.0,
+            status=NavigationStatus.GOAL_RECEIVED,
+            message="Navigation goal received. Waiting for package pickup before tracking progress.",
+        )
         self.progress_publisher.publish(progress_to_ros_message(initial_progress))
         rospy.loginfo("Received goal and published progress: %s", format_navigation_progress_summary(initial_progress))
+
+    def handle_package_status(self, msg: String) -> None:
+        """Enable or disable progress tracking based on package state."""
+        try:
+            event = PackageStatusEvent.from_json(msg.data)
+        except ValueError as exc:
+            rospy.logerr("Failed to parse package status for navigation progress: %s", exc)
+            return
+
+        current_goal = self.simulator.get_current_goal()
+        if current_goal is None:
+            return
+
+        if event.task_id is not None and current_goal.task_id is not None and event.task_id != current_goal.task_id:
+            return
+
+        if event.package_state == PackageState.CARRYING:
+            self.progress_tracking_enabled = True
+            rospy.loginfo("Package picked up; tracking navigation progress for task %s", current_goal.task_id)
+            return
+
+        if event.package_state == PackageState.DELIVERED:
+            self.publish_final_arrival_progress(current_goal, event.task_id)
+            self.progress_tracking_enabled = False
+            rospy.loginfo("Package delivered; stopping navigation progress tracking for task %s", current_goal.task_id)
+
+    def publish_final_arrival_progress(self, goal: NavigationGoal, task_id: str | None) -> None:
+        """Publish a terminal 100% progress update for the active goal."""
+        progress = NavigationProgress(
+            goal_id=goal.goal_id,
+            task_id=task_id or goal.task_id,
+            current_zone=goal.destination_zone,
+            destination_zone=goal.destination_zone,
+            progress_percent=100.0,
+            status=NavigationStatus.ARRIVED,
+            message="Robot arrived at destination.",
+        )
+        self.progress_publisher.publish(progress_to_ros_message(progress))
+        rospy.loginfo("%s", format_navigation_progress_summary(progress))
+        self.simulator.reset_if_terminal()
 
     def handle_emergency_stop(self, msg: String) -> None:
         """Block the active navigation goal when an emergency stop becomes active."""
@@ -91,6 +153,9 @@ class PathProgressMonitorNode:
 
     def publish_progress_step(self, _event=None) -> None:
         """Advance the simulator and publish a new progress update."""
+        if not self.progress_tracking_enabled:
+            return
+
         progress = self.simulator.step()
         if progress.status == NavigationStatus.IDLE and progress.goal_id == "GOAL-IDLE":
             return

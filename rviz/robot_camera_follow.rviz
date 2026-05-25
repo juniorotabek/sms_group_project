@@ -58,6 +58,19 @@ Visualization Manager:
       Enabled: true
       Marker Topic: "/warehouse/package/marker"
       Queue Size: 10
+    - Class: "rviz/LaserScan"
+      Name: "LiDAR Scan"
+      Enabled: true
+      Topic: "/warehouse/lidar/scan"
+      Queue Size: 10
+      Size (m): 0.03
+      Style: Points
+    - Class: "rviz/Marker"
+      Name: "LiDAR Analysis"
+      Enabled: true
+      Marker Topic: "/warehouse/lidar/analysis"
+      Queue Size: 1
+      Alpha: 1.0
     - Class: "rviz/Marker"
       Name: "Camera Follower"
       Enabled: true

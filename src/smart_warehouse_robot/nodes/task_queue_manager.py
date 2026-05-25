@@ -7,12 +7,11 @@ from datetime import datetime, timezone
 
 from smart_warehouse_robot.common.constants import (
     DEFAULT_ROBOT_NAME,
-    DEFAULT_TASK_COMPLETION_CYCLES,
-    NAVIGATION_PROGRESS_TOPIC,
+    PACKAGE_STATUS_TOPIC,
     TASK_NEW_TOPIC,
     TASK_STATUS_TOPIC,
 )
-from smart_warehouse_robot.common.models import NavigationProgress, NavigationStatus, TaskStatus, WarehouseTask
+from smart_warehouse_robot.common.models import PackageState, PackageStatusEvent, TaskStatus, WarehouseTask
 from smart_warehouse_robot.services.task_queue import TaskQueue
 
 try:
@@ -58,26 +57,18 @@ class TaskQueueManagerNode:
 
         self.robot_name = str(rospy.get_param("~robot_name", DEFAULT_ROBOT_NAME))
         self.auto_process_tasks = bool(rospy.get_param("~auto_process_tasks", True))
-        self.completion_cycles = int(rospy.get_param("~completion_cycles", DEFAULT_TASK_COMPLETION_CYCLES))
-        self.complete_on_arrival = bool(rospy.get_param("~complete_on_arrival", True))
 
         self.queue = TaskQueue()
         self.current_task_id: str | None = None
-        self.current_task_cycles = 0
 
         self.subscription = rospy.Subscriber(TASK_NEW_TOPIC, String, self.handle_new_task, queue_size=10)
-        self.navigation_subscription = rospy.Subscriber(
-            NAVIGATION_PROGRESS_TOPIC,
-            String,
-            self.handle_navigation_progress,
-            queue_size=10,
-        )
+        self.package_subscription = rospy.Subscriber(PACKAGE_STATUS_TOPIC, String, self.handle_package_status, queue_size=10)
         self.status_publisher = rospy.Publisher(TASK_STATUS_TOPIC, String, queue_size=10)
         self.timer = rospy.Timer(rospy.Duration(3.0), self.process_queue)
         rospy.loginfo(
             "TaskQueueManagerNode started. Listening on %s and %s, publishing to %s",
             TASK_NEW_TOPIC,
-            NAVIGATION_PROGRESS_TOPIC,
+            PACKAGE_STATUS_TOPIC,
             TASK_STATUS_TOPIC,
         )
 
@@ -140,47 +131,39 @@ class TaskQueueManagerNode:
         rospy.loginfo("Completed task %s (%s)", completed_task.task_id, reason)
         self.publish_task_event("task_completed", completed_task)
         self.current_task_id = None
-        self.current_task_cycles = 0
         self.publish_queue_summary()
 
-    def handle_navigation_progress(self, msg: String) -> None:
-        """Complete the active task when navigation reports ARRIVED for that task."""
-        if not self.complete_on_arrival or self.current_task_id is None:
+    def handle_package_status(self, msg: String) -> None:
+        """Complete the active task only after the package is actually delivered."""
+        if self.current_task_id is None:
             return
 
         try:
-            progress = NavigationProgress.from_json(msg.data)
+            package_event = PackageStatusEvent.from_json(msg.data)
         except ValueError as exc:
-            rospy.logerr("Failed to parse navigation progress in task manager: %s", exc)
+            rospy.logerr("Failed to parse package status in task manager: %s", exc)
             return
 
-        if progress.status != NavigationStatus.ARRIVED:
+        if package_event.package_state != PackageState.DELIVERED:
             return
 
-        if progress.task_id != self.current_task_id:
+        if package_event.task_id != self.current_task_id:
             return
 
-        self.complete_current_task("navigation_arrived")
+        self.complete_current_task("package_delivered")
 
     def process_queue(self, _event=None) -> None:
-        """Simulate starting and completing tasks on a simple timer."""
+        """Simulate starting tasks; completion is driven by package delivery events."""
         if not self.auto_process_tasks:
             return
 
         current_task = self.queue.get_task(self.current_task_id) if self.current_task_id else None
         if current_task is not None and current_task.status == TaskStatus.IN_PROGRESS:
-            if self.complete_on_arrival:
-                return
-
-            self.current_task_cycles += 1
-            if self.current_task_cycles >= self.completion_cycles:
-                self.complete_current_task("completion_cycles")
             return
 
         next_task = self.queue.start_next_task(self.robot_name)
         if next_task is not None:
             self.current_task_id = next_task.task_id
-            self.current_task_cycles = 0
             rospy.loginfo("Started task %s on robot %s", next_task.task_id, self.robot_name)
             self.publish_task_event("task_started", next_task)
             self.publish_queue_summary()

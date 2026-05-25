@@ -18,6 +18,7 @@ from smart_warehouse_robot.common.constants import (
     PACKAGE_DROPOFF_SERVICE,
     PACKAGE_PICKUP_SERVICE,
     PACKAGE_RESET_SERVICE,
+    LIDAR_SCAN_TOPIC,
     PACKAGE_STATUS_TOPIC,
     PACKAGE_VISUALIZATION_TOPIC,
     TASK_STATUS_TOPIC,
@@ -32,8 +33,10 @@ try:
     import rospy
     from std_msgs.msg import String
     from std_srvs.srv import Trigger
+    from sensor_msgs.msg import LaserScan as RosLaserScan
     from visualization_msgs.msg import Marker
     import tf
+    LaserScan = RosLaserScan
 except ImportError:  # pragma: no cover - allows import in non-ROS environments
     rospy = None
 
@@ -64,6 +67,19 @@ except ImportError:  # pragma: no cover - allows import in non-ROS environments
             self.scale = SimpleNamespace(x=0.0, y=0.0, z=0.0)
             self.color = SimpleNamespace(r=0.0, g=0.0, b=0.0, a=0.0)
             self.lifetime = None
+
+    class LaserScan:  # pragma: no cover
+        def __init__(self) -> None:
+            self.header = SimpleNamespace(frame_id="", stamp=None)
+            self.angle_min = 0.0
+            self.angle_max = 0.0
+            self.angle_increment = 0.0
+            self.time_increment = 0.0
+            self.scan_time = 0.0
+            self.range_min = 0.0
+            self.range_max = 0.0
+            self.ranges = []
+            self.intensities = []
 
     class _TransformBroadcaster:  # pragma: no cover
         def sendTransform(self, *args, **kwargs) -> None:
@@ -130,7 +146,24 @@ class RVizDeliveryVisualizerNode:
 
         self.tf_broadcaster = tf.TransformBroadcaster()
         self.package_marker_publisher = rospy.Publisher(PACKAGE_VISUALIZATION_TOPIC, Marker, queue_size=10)
+        self.lidar_scan_publisher = rospy.Publisher(LIDAR_SCAN_TOPIC, LaserScan, queue_size=10)
+        self.lidar_analysis_publisher = rospy.Publisher("/warehouse/lidar/analysis", Marker, queue_size=1)
         self.hud_marker_publisher = rospy.Publisher("/warehouse/hud_text", Marker, queue_size=1)
+        self.lidar_num_rays = int(rospy.get_param("~lidar_num_rays", 181))
+        self.lidar_range_max = float(rospy.get_param("~lidar_range_max", 12.0))
+        self.lidar_fov_radians = float(rospy.get_param("~lidar_fov_radians", math.pi))
+        self.lidar_obstacle_radius = float(rospy.get_param("~lidar_obstacle_radius", 0.35))
+        self.lidar_targets = [
+            "receiving",
+            "storage_a",
+            "storage_b",
+            "packing",
+            "shipping",
+            "charging_station",
+            "parking_a",
+            "parking_b",
+            "parking_c",
+        ]
         self.battery_subscriber = rospy.Subscriber(BATTERY_STATE_TOPIC, String, self.handle_battery_state, queue_size=5)
         self.robot_status_subscriber = rospy.Subscriber(ROBOT_STATUS_TOPIC, String, self.handle_robot_status, queue_size=5)
         self.camera_follower_publisher = rospy.Publisher("/warehouse/camera_follower", Marker, queue_size=10)
@@ -157,6 +190,8 @@ class RVizDeliveryVisualizerNode:
         self.package_marker_id = 1
         self.pickup_marker_id = 2
         self.dropoff_marker_id = 3
+        self.parking_a_marker_id = 4
+        self.parking_b_marker_id = 5
         self.route_phase = "idle"
         self.leg_progress_ratio = 0.0
         self.pickup_position_xy = (0.0, 0.0)
@@ -258,6 +293,7 @@ class RVizDeliveryVisualizerNode:
         self.latest_progress_percent = float(clamp_progress(payload.get("progress_percent", 0.0)))
 
         self.publish_package_marker()
+        self.publish_lidar_scan()
         self.publish_hud_marker()
 
     def handle_animation_tick(self, event) -> None:
@@ -267,6 +303,7 @@ class RVizDeliveryVisualizerNode:
             self.publish_robot_transform()
             self.publish_location_markers()
             self.publish_package_marker()
+            self.publish_lidar_scan()
             self.publish_camera_follower_marker()
             return
 
@@ -292,6 +329,7 @@ class RVizDeliveryVisualizerNode:
         self.publish_robot_transform()
         self.publish_location_markers()
         self.publish_package_marker()
+        self.publish_lidar_scan()
         self.publish_hud_marker()
 
     def handle_battery_state(self, msg: String) -> None:
@@ -306,7 +344,103 @@ class RVizDeliveryVisualizerNode:
             self.latest_battery_percent = float(payload.get("percentage", payload.get("level", 0.0)))
         except Exception:
             self.latest_battery_percent = None
+        self.publish_lidar_scan()
         self.publish_hud_marker()
+
+    def publish_lidar_scan(self) -> None:
+        """Publish a synthetic 2D LiDAR scan and a short analysis summary."""
+        scan = LaserScan()
+        scan.header.stamp = rospy.Time.now()
+        scan.header.frame_id = "lidar_link"
+        scan.angle_min = -self.lidar_fov_radians / 2.0
+        scan.angle_max = self.lidar_fov_radians / 2.0
+        scan.angle_increment = self.lidar_fov_radians / max(self.lidar_num_rays - 1, 1)
+        scan.range_min = 0.05
+        scan.range_max = self.lidar_range_max
+
+        robot_x, robot_y, _ = self.robot_position
+        ray_ranges: list[float] = []
+        for ray_index in range(self.lidar_num_rays):
+            ray_angle = self.robot_yaw + scan.angle_min + ray_index * scan.angle_increment
+            best_distance = self.lidar_range_max
+            for zone_name in self.lidar_targets:
+                target_x, target_y = _zone_coordinates(zone_name)
+                hit_distance = self._ray_circle_intersection(
+                    robot_x,
+                    robot_y,
+                    ray_angle,
+                    target_x,
+                    target_y,
+                    self.lidar_obstacle_radius,
+                )
+                if hit_distance is not None:
+                    best_distance = min(best_distance, hit_distance)
+            ray_ranges.append(best_distance)
+
+        scan.ranges = ray_ranges
+        scan.intensities = [1.0 if distance < self.lidar_range_max else 0.0 for distance in ray_ranges]
+        self.lidar_scan_publisher.publish(scan)
+        self.publish_lidar_analysis(scan)
+
+    def publish_lidar_analysis(self, scan) -> None:
+        """Publish a text marker summarizing the synthetic LiDAR reading."""
+        marker = Marker()
+        marker.header.stamp = rospy.Time.now()
+        marker.header.frame_id = "camera_target"
+        marker.ns = "lidar_analysis"
+        marker.id = 200
+        marker.type = Marker.TEXT_VIEW_FACING
+        marker.action = Marker.ADD
+        marker.pose.position.x = 1.8
+        marker.pose.position.y = -1.4
+        marker.pose.position.z = 0.35
+        marker.pose.orientation.w = 1.0
+        marker.scale.z = 0.28
+        marker.color.r = 0.20
+        marker.color.g = 0.95
+        marker.color.b = 1.00
+        marker.color.a = 1.0
+
+        valid_ranges = [distance for distance in scan.ranges if scan.range_min <= distance < scan.range_max]
+        min_range = min(valid_ranges) if valid_ranges else scan.range_max
+        avg_range = sum(valid_ranges) / len(valid_ranges) if valid_ranges else scan.range_max
+        hit_count = len(valid_ranges)
+        marker.text = (
+            "LiDAR Analysis\n"
+            f"Rays: {len(scan.ranges)}\n"
+            f"Min range: {min_range:.2f} m\n"
+            f"Avg hit range: {avg_range:.2f} m\n"
+            f"Hits: {hit_count}/{len(scan.ranges)}"
+        )
+        self.lidar_analysis_publisher.publish(marker)
+
+    def _ray_circle_intersection(
+        self,
+        robot_x: float,
+        robot_y: float,
+        ray_angle: float,
+        center_x: float,
+        center_y: float,
+        radius: float,
+    ) -> float | None:
+        """Return the nearest positive ray-circle intersection distance, if any."""
+        dx = math.cos(ray_angle)
+        dy = math.sin(ray_angle)
+        fx = robot_x - center_x
+        fy = robot_y - center_y
+
+        a = dx * dx + dy * dy
+        b = 2.0 * (fx * dx + fy * dy)
+        c = fx * fx + fy * fy - radius * radius
+        discriminant = b * b - 4.0 * a * c
+        if discriminant < 0.0:
+            return None
+
+        sqrt_discriminant = math.sqrt(discriminant)
+        candidates = [t for t in ((-b - sqrt_discriminant) / (2.0 * a), (-b + sqrt_discriminant) / (2.0 * a)) if t >= 0.0]
+        if not candidates:
+            return None
+        return min(candidates)
 
     def handle_robot_status(self, msg: String) -> None:
         """Store latest robot status for HUD display."""
@@ -535,7 +669,39 @@ class RVizDeliveryVisualizerNode:
         self.package_marker_publisher.publish(marker)
 
     def publish_location_markers(self) -> None:
-        """Publish distinct pickup and dropoff location markers."""
+        """Publish distinct pickup, dropoff, and always-visible parking zone markers."""
+        parking_a_marker = Marker()
+        parking_a_marker.header.stamp = rospy.Time.now()
+        parking_a_marker.ns = "warehouse_parking_zones"
+        parking_a_marker.id = self.parking_a_marker_id
+        parking_a_marker.type = Marker.CUBE
+        parking_a_marker.action = Marker.ADD
+        parking_a_marker.header.frame_id = self.map_frame
+        parking_a_marker.pose.orientation.w = 1.0
+        parking_a_marker.scale.x = 1.25
+        parking_a_marker.scale.y = 0.85
+        parking_a_marker.scale.z = 0.03
+        parking_a_marker.color.r = 0.20
+        parking_a_marker.color.g = 0.55
+        parking_a_marker.color.b = 0.95
+        parking_a_marker.color.a = 0.55
+
+        parking_b_marker = Marker()
+        parking_b_marker.header.stamp = rospy.Time.now()
+        parking_b_marker.ns = "warehouse_parking_zones"
+        parking_b_marker.id = self.parking_b_marker_id
+        parking_b_marker.type = Marker.CUBE
+        parking_b_marker.action = Marker.ADD
+        parking_b_marker.header.frame_id = self.map_frame
+        parking_b_marker.pose.orientation.w = 1.0
+        parking_b_marker.scale.x = 1.25
+        parking_b_marker.scale.y = 0.85
+        parking_b_marker.scale.z = 0.03
+        parking_b_marker.color.r = 0.20
+        parking_b_marker.color.g = 0.55
+        parking_b_marker.color.b = 0.95
+        parking_b_marker.color.a = 0.55
+
         pickup_marker = Marker()
         pickup_marker.header.stamp = rospy.Time.now()
         pickup_marker.ns = "warehouse_locations"
@@ -563,6 +729,20 @@ class RVizDeliveryVisualizerNode:
         dropoff_marker.color.g = 0.90
         dropoff_marker.color.b = 0.30
         dropoff_marker.color.a = 0.95
+
+        parking_a_x, parking_a_y = _zone_coordinates(WarehouseZone.PARKING_A)
+        parking_b_x, parking_b_y = _zone_coordinates(WarehouseZone.PARKING_B)
+
+        parking_a_marker.pose.position.x = parking_a_x
+        parking_a_marker.pose.position.y = parking_a_y
+        parking_a_marker.pose.position.z = 0.015
+
+        parking_b_marker.pose.position.x = parking_b_x
+        parking_b_marker.pose.position.y = parking_b_y
+        parking_b_marker.pose.position.z = 0.015
+
+        self.package_marker_publisher.publish(parking_a_marker)
+        self.package_marker_publisher.publish(parking_b_marker)
 
         if self.source_zone is None or self.destination_zone is None:
             pickup_marker.action = Marker.DELETE
