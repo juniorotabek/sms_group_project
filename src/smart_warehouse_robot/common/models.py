@@ -3,7 +3,17 @@
 from __future__ import annotations
 
 import json
-from dataclasses import dataclass, field
+from dataclasses import dataclass as _dataclass, field
+import sys
+
+
+def dataclass(*dargs, **dkwargs):
+    """Compatibility wrapper for dataclasses.dataclass that ignores
+    the `slots` keyword on Python versions that don't support it (pre-3.10).
+    """
+    if sys.version_info < (3, 10):
+        dkwargs.pop("slots", None)
+    return _dataclass(*dargs, **dkwargs)
 from datetime import datetime, timezone
 from enum import Enum
 from typing import Optional
@@ -119,7 +129,7 @@ class DiagnosticSource(str, Enum):
     SYSTEM = "system"
 
 
-@dataclass(slots=True)
+@dataclass
 class WarehouseTask:
     """Data model for warehouse work items shared across CLI and ROS nodes."""
 
@@ -246,7 +256,7 @@ def _default_task_id() -> str:
     return create_task_id()
 
 
-@dataclass(slots=True)
+@dataclass
 class Waypoint:
     """Simple warehouse waypoint derived from a named zone."""
 
@@ -282,7 +292,7 @@ class Waypoint:
             raise ValueError(f"Invalid waypoint data: {exc}") from exc
 
 
-@dataclass(slots=True)
+@dataclass
 class NavigationGoal:
     """Navigation goal produced from a task start event."""
 
@@ -382,7 +392,7 @@ class NavigationGoal:
         return cls.from_dict(data)
 
 
-@dataclass(slots=True)
+@dataclass
 class NavigationProgress:
     """Progress event emitted while the robot moves toward a destination zone."""
 
@@ -458,7 +468,7 @@ def _default_goal_id() -> str:
     return create_goal_id()
 
 
-@dataclass(slots=True)
+@dataclass
 class ObstacleReading:
     """Obstacle reading used for safety simulation."""
 
@@ -532,7 +542,7 @@ class ObstacleReading:
         return self.severity in {ObstacleSeverity.HIGH, ObstacleSeverity.CRITICAL}
 
 
-@dataclass(slots=True)
+@dataclass
 class EmergencyStopCommand:
     """Emergency stop command emitted by the safety monitor."""
 
@@ -629,7 +639,7 @@ def _default_emergency_command_id() -> str:
     return create_emergency_command_id()
 
 
-@dataclass(slots=True)
+@dataclass
 class BatteryState:
     """Battery state used for simulation and charge control."""
 
@@ -721,7 +731,7 @@ class BatteryState:
         return self.charging_status == ChargingStatus.CHARGING
 
 
-@dataclass(slots=True)
+@dataclass
 class ChargeCommand:
     """Command instructing the robot to return to the charging station."""
 

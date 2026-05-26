@@ -1,0 +1,11 @@
+<launch>
+  <env name="GAZEBO_MODEL_PATH" value="$(find smart_warehouse_robot)/models:$(optenv GAZEBO_MODEL_PATH)" />
+
+  <node
+    pkg="smart_warehouse_robot"
+    type="run_gazebo_visualization.sh"
+    name="gazebo_visualization"
+    output="screen"
+    required="true"
+  />
+</launch>

@@ -33,9 +33,10 @@ install(PROGRAMS
   scripts/replay_demo_bag.sh
   scripts/check_demo_bag.sh
   scripts/run_demo_instructions.sh
+  scripts/run_gazebo_visualization.sh
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 
-install(DIRECTORY launch config docs bags
+install(DIRECTORY launch config docs bags urdf worlds models
   DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
 )

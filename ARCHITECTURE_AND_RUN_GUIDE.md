@@ -117,7 +117,8 @@ smart_warehouse_robot/
 │   └── run_demo_instructions.sh       # Print demo steps
 │
 ├── launch/
-│   └── warehouse_demo.launch          # Launch all nodes
+│   ├── warehouse_demo.launch          # Launch all nodes
+│   └── gazebo_warehouse.launch        # Launch Gazebo world and robot
 │
 ├── config/
 │   ├── warehouse_map.yaml             # Zone definitions

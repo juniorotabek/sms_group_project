@@ -8,6 +8,7 @@ The final project also includes a validation layer built around:
 
 - `pytest` scenario tests for pure logic and message JSON
 - launch validation that checks `warehouse_demo.launch`
+- Gazebo launch validation that checks `gazebo_warehouse.launch`
 - project structure validation
 - ROS bag helper scripts for final demo recording, replay, and inspection
 
@@ -53,6 +54,8 @@ All topic payloads use `std_msgs/String` with JSON bodies. Package pickup, dropo
 
 ## Launch and Recording
 - Main launch file: `launch/warehouse_demo.launch`
+- Gazebo launch file: `launch/gazebo_warehouse.launch`
+- Standalone Gazebo visualization script: `scripts/run_gazebo_visualization.sh`
 - Launch system: ROS 1 XML via `roslaunch`
 - Recording system: `rosbag record`, `rosbag play`, `rosbag info`
 - Main demo bag now includes task, navigation, safety, battery, package, status, and diagnostics topics

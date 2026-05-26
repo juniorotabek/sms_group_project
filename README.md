@@ -136,7 +136,13 @@ smart_warehouse_robot/
 │           └── diagnostic_logger.py
 │
 ├── launch/
-│   └── warehouse_demo.launch
+│   ├── warehouse_demo.launch
+│   └── gazebo_warehouse.launch
+│
+├── models/
+│   └── warehouse_robot/
+│       ├── model.config
+│       └── model.sdf
 │
 ├── config/
 │   ├── warehouse_map.yaml
@@ -628,6 +634,23 @@ cd ~/catkin_ws
 source devel/setup.bash
 roslaunch smart_warehouse_robot warehouse_demo.launch
 ```
+
+### Optional: Launch Gazebo
+
+If Gazebo is installed, you can start the 3D visualization directly:
+
+```bash
+./scripts/run_gazebo_visualization.sh
+```
+
+The world shows:
+
+- a visible warehouse robot model
+- slow autonomous robot motion using Gazebo's built-in random velocity plugin
+- receiving, storage, packing, and charging zones
+- aisle boundary walls
+- floor lane markings
+- a central obstacle for collision visibility
 
 This launches the full warehouse robot simulation:
 
