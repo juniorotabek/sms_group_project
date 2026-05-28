@@ -19,8 +19,31 @@ except ImportError:  # pragma: no cover - allows import during non-ROS tests
             self.data = data
 
 
-def create_sample_tasks() -> list[WarehouseTask]:
-    """Create rotating sample tasks for demo publishing."""
+def create_sample_tasks(profile: str = "mixed") -> list[WarehouseTask]:
+    """Create rotating sample tasks for demo publishing.
+
+    Supported profiles:
+    - mixed: general warehouse flow with varied task types.
+    - delivery_loop: repeated pickup/dropoff style routes for continuous delivery animation.
+    - parking_demo: single pickup location (receiving) with rotating parking spots (parking_a, parking_b, parking_c).
+    """
+    normalized = str(profile).strip().lower()
+    if normalized == "parking_demo":
+        # Single pickup from RECEIVING, cycle through 3 parking spots for dropoff
+        return [
+            WarehouseTask(TaskType.PICKUP, WarehouseZone.RECEIVING, WarehouseZone.PARKING_A, 3),
+            WarehouseTask(TaskType.DROPOFF, WarehouseZone.RECEIVING, WarehouseZone.PARKING_B, 4),
+            WarehouseTask(TaskType.PICKUP, WarehouseZone.RECEIVING, WarehouseZone.PARKING_C, 3),
+            WarehouseTask(TaskType.DROPOFF, WarehouseZone.RECEIVING, WarehouseZone.PARKING_A, 4),
+        ]
+    if normalized == "delivery_loop":
+        return [
+            WarehouseTask(TaskType.PICKUP, WarehouseZone.RECEIVING, WarehouseZone.STORAGE_A, 3),
+            WarehouseTask(TaskType.DROPOFF, WarehouseZone.STORAGE_A, WarehouseZone.SHIPPING, 4),
+            WarehouseTask(TaskType.PICKUP, WarehouseZone.PACKING, WarehouseZone.STORAGE_B, 3),
+            WarehouseTask(TaskType.DROPOFF, WarehouseZone.STORAGE_B, WarehouseZone.SHIPPING, 4),
+        ]
+
     return [
         WarehouseTask(TaskType.PICKUP, WarehouseZone.RECEIVING, WarehouseZone.STORAGE_A, 3),
         WarehouseTask(TaskType.MOVE, WarehouseZone.STORAGE_A, WarehouseZone.PACKING, 2),
@@ -43,16 +66,18 @@ class TaskPublisherNode:
 
         self.publish_interval_seconds = float(rospy.get_param("~publish_interval_seconds", DEFAULT_TASK_PUBLISH_INTERVAL_SECONDS))
         self.auto_publish_sample_tasks = bool(rospy.get_param("~auto_publish_sample_tasks", True))
+        self.sample_profile = str(rospy.get_param("~sample_profile", "mixed"))
         self.publisher = rospy.Publisher(TASK_NEW_TOPIC, String, queue_size=10)
-        self._sample_task_iterator = cycle(create_sample_tasks())
+        self._sample_task_iterator = cycle(create_sample_tasks(self.sample_profile))
         self.timer = None
 
         if self.auto_publish_sample_tasks:
             self.timer = rospy.Timer(rospy.Duration(self.publish_interval_seconds), self.publish_sample_task)
             rospy.loginfo(
-                "TaskPublisherNode started with auto sample publishing every %.1fs on %s",
+                "TaskPublisherNode started with auto sample publishing every %.1fs on %s (profile=%s)",
                 self.publish_interval_seconds,
                 TASK_NEW_TOPIC,
+                self.sample_profile,
             )
         else:
             rospy.loginfo("TaskPublisherNode started with auto sample publishing disabled. Topic: %s", TASK_NEW_TOPIC)

@@ -1,0 +1,111 @@
+Panels:
+  - Class: rviz/Displays
+    Name: Displays
+    Property Tree Widget:
+      Expanded: ~
+      Splitter Ratio: 0.5
+  - Class: rviz/Views
+    Expanded: ~
+    Name: Views
+    Splitter Ratio: 0.5
+
+Visualization Manager:
+  Class: "VisualizationManager"
+  Name: "root"
+  Enabled: true
+  
+  Global Options:
+    Background Color: 48; 48; 48
+    Fixed Frame: "map"
+    Frame Rate: 60
+    
+  Default Visibility: ~
+  
+  Displays:
+    - Class: "rviz/TF"
+      Name: "TF"
+      Enabled: true
+      Frame Timeout: 15
+      Marker Scale: 1
+      Marker Color: 255; 25; 0; 255
+      Line Width: 0.03
+      Show Frame Names: true
+      Show Axes: true
+      Show Leaf Frames: true
+      Enabled Frames:
+        base_link: true
+        camera_target: true
+        map: true
+        wheel_left: true
+        wheel_right: true
+      All Enabled: true
+      Marker Type: SPHERE
+        
+    - Class: "rviz/RobotModel"
+      Name: "RobotModel"
+      Enabled: true
+      Alpha: 0.9
+      Robot Description: "robot_description"
+      TF Prefix: ""
+      Update Interval: 0
+      Visual Enabled: true
+      Collision Enabled: false
+      Expand Link Details: false
+      Expand Joint Details: false
+        
+    - Class: "rviz/Marker"
+      Name: "Warehouse Markers"
+      Enabled: true
+      Marker Topic: "/warehouse/package/marker"
+      Queue Size: 10
+    - Class: "rviz/LaserScan"
+      Name: "LiDAR Scan"
+      Enabled: true
+      Topic: "/warehouse/lidar/scan"
+      Queue Size: 10
+      Size (m): 0.03
+      Style: Points
+    - Class: "rviz/Marker"
+      Name: "LiDAR Analysis"
+      Enabled: true
+      Marker Topic: "/warehouse/lidar/analysis"
+      Queue Size: 1
+      Alpha: 1.0
+    - Class: "rviz/Marker"
+      Name: "Camera Follower"
+      Enabled: true
+      Marker Topic: "/warehouse/camera_follower"
+      Queue Size: 5
+      Alpha: 0.6
+    - Class: "rviz/Marker"
+      Name: "HUD Text"
+      Enabled: true
+      Marker Topic: "/warehouse/hud_text"
+      Queue Size: 1
+      Alpha: 1.0
+    - Class: "rviz/Grid"
+      Name: "Ground Grid"
+      Enabled: true
+      Plane: XY
+      Cell Size: 0.5
+      Plane Cell Count: 50
+      Color: 80; 80; 80
+      Alpha: 0.5
+      
+  Views:
+    Current:
+      Class: rviz/Orbit
+      Name: "Orbit"
+      Target Frame: "camera_target"
+      Distance: 5.0
+      Focal Point:
+        X: 4.5
+        Y: 0
+        Z: 0
+      Focal Shape Fixed Size: true
+      Focal Shape Size: 0.05
+      Invert Z Axis: false
+      Name: "Orbit"
+      Pitch: 0.785398  # 45 degrees
+      Target Frame: "camera_target"
+      Yaw: 0

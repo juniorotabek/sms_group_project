@@ -7,6 +7,7 @@
   <node pkg="smart_warehouse_robot" type="task_queue_manager_node.py" name="task_queue_manager" output="screen">
     <param name="robot_name" value="warehouse_bot_01" />
     <param name="auto_process_tasks" value="true" />
+    <param name="complete_on_arrival" value="true" />
     <param name="completion_cycles" value="2" />
   </node>
 

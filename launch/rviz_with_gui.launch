@@ -1,0 +1,7 @@
+<launch>
+  <!-- Ensure robot_description + TF are published -->
+  <include file="$(find smart_warehouse_robot)/launch/rviz_robot.launch"/>
+
+  <!-- Start RViz with provided config -->
+  <node pkg="rviz" type="rviz" name="rviz" args="-d $(find smart_warehouse_robot)/rviz/robot.rviz" output="screen"/>
+</launch>

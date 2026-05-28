@@ -1,0 +1,49 @@
+<launch>
+  <!-- Delivery-focused demo profile: smooth progress updates, no obstacle-induced pauses. -->
+  <node pkg="smart_warehouse_robot" type="task_publisher_node.py" name="task_publisher" anon="true" output="screen">
+    <param name="publish_interval_seconds" value="4.0" />
+    <param name="auto_publish_sample_tasks" value="true" />
+    <param name="sample_profile" value="parking_demo" />
+  </node>
+
+  <node pkg="smart_warehouse_robot" type="task_queue_manager_node.py" name="task_queue_manager" anon="true" output="screen">
+    <param name="robot_name" value="warehouse_bot_01" />
+    <param name="auto_process_tasks" value="true" />
+  </node>
+
+  <node pkg="smart_warehouse_robot" type="waypoint_goal_publisher_node.py" name="waypoint_goal_publisher" anon="true" output="screen" />
+
+  <node pkg="smart_warehouse_robot" type="path_progress_monitor_node.py" name="path_progress_monitor" anon="true" output="screen">
+    <param name="navigation_step_percent" value="5.0" />
+    <param name="navigation_update_seconds" value="0.25" />
+  </node>
+
+  <!-- Keep power/charging/package/status flows from the full demo. -->
+  <node pkg="smart_warehouse_robot" type="battery_publisher_node.py" name="battery_publisher" anon="true" output="screen">
+    <param name="robot_name" value="warehouse_bot_01" />
+    <param name="publish_interval_seconds" value="3.0" />
+    <param name="start_percentage" value="100.0" />
+    <param name="battery_drain_percent" value="1.0" />
+    <param name="battery_charge_percent" value="10.0" />
+    <param name="start_zone" value="receiving" />
+  </node>
+
+  <node pkg="smart_warehouse_robot" type="package_handler_node.py" name="package_handler" anon="true" output="screen">
+    <param name="robot_name" value="warehouse_bot_01" />
+    <param name="default_source_zone" value="storage_a" />
+    <param name="default_destination_zone" value="shipping" />
+    <param name="auto_create_package_on_pickup" value="true" />
+  </node>
+
+  <node pkg="smart_warehouse_robot" type="status_publisher_node.py" name="status_publisher" anon="true" output="screen">
+    <param name="robot_name" value="warehouse_bot_01" />
+    <param name="publish_interval_seconds" value="1.0" />
+    <param name="start_zone" value="receiving" />
+  </node>
+
+  <node pkg="smart_warehouse_robot" type="diagnostic_logger_node.py" name="diagnostic_logger" anon="true" output="screen">
+    <param name="robot_name" value="warehouse_bot_01" />
+    <param name="log_interval_seconds" value="5.0" />
+    <param name="max_events" value="100" />
+  </node>
+</launch>

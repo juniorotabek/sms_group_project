@@ -1,0 +1,7 @@
+<launch>
+  <!-- Launch the demo nodes -->
+  <include file="$(find smart_warehouse_robot)/launch/warehouse_demo.launch"/>
+
+  <!-- Launch RViz helper (robot_description + robot_state_publisher + TF) and RViz GUI -->
+  <include file="$(find smart_warehouse_robot)/launch/rviz_with_gui.launch"/>
+</launch>

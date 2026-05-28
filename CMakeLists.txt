@@ -6,6 +6,8 @@ find_package(catkin REQUIRED COMPONENTS
   rospy
   std_msgs
   std_srvs
+  tf
+  visualization_msgs
 )
 
 catkin_python_setup()
@@ -24,6 +26,7 @@ catkin_install_python(PROGRAMS
   scripts/package_handler_node.py
   scripts/status_publisher_node.py
   scripts/diagnostic_logger_node.py
+  scripts/rviz_delivery_visualizer_node.py
   scripts/smart_warehouse_cli.py
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )

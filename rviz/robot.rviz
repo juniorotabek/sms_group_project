@@ -1,0 +1,27 @@
+Panels:
+  - Class: rviz/Displays
+    Name: Displays
+
+Visualization Manager:
+  Class: "VisualizationManager"
+  Name: "root"
+  Enabled: true
+  Global Options:
+    Fixed Frame: "map"
+  Displays:
+    - Class: "rviz/TF"
+      Name: "TF"
+      Enabled: true
+    - Class: "rviz/RobotModel"
+      Name: "RobotModel"
+      Enabled: true
+      Robot Description: "robot_description"
+      Alpha: 0.9
+      Visual Enabled: true
+      Collision Enabled: false
+    - Class: "rviz/Marker"
+      Name: "Package"
+      Enabled: true
+      Marker Topic: "/warehouse/package/marker"
+      Queue Size: 10
+      Alpha: 1.0

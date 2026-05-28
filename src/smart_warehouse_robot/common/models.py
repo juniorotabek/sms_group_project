@@ -3,10 +3,22 @@
 from __future__ import annotations
 
 import json
-from dataclasses import dataclass, field
+from dataclasses import dataclass as _dataclass, field
 from datetime import datetime, timezone
 from enum import Enum
 from typing import Optional
+
+
+# Compatibility shim: allow @dataclass(slots=True) on Python <3.10
+def dataclass(*args, **kwargs):
+    if 'slots' in kwargs:
+        try:
+            return _dataclass(*args, **kwargs)
+        except TypeError:
+            kwargs = dict(kwargs)
+            kwargs.pop('slots', None)
+            return _dataclass(*args, **kwargs)
+    return _dataclass(*args, **kwargs)
 
 
 class WarehouseZone(str, Enum):
@@ -16,6 +28,9 @@ class WarehouseZone(str, Enum):
     PACKING = "packing"
     SHIPPING = "shipping"
     CHARGING_STATION = "charging_station"
+    PARKING_A = "parking_a"
+    PARKING_B = "parking_b"
+    PARKING_C = "parking_c"
 
 
 class TaskType(str, Enum):
